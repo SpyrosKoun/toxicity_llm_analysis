@@ -1,13 +1,29 @@
+import argparse
 import json
 import logging
 
 import pandas as pd
 from pathlib import Path
-from tqdm import tqdm
+import tqdm
 
 from json_repair import repair_json
 
 from prompts import render_prompt
+
+
+class TqdmLoggingHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.tqdm.write(msg)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
 
 # ── Backend selection ──────────────────────────────────────────────────────────
 # Set to "ollama" or "huggingface"
@@ -18,6 +34,12 @@ HF_MODEL = "Qwen/Qwen3-4B"
 
 MODEL = OLLAMA_MODEL if BACKEND == "ollama" else HF_MODEL
 TEMPLATE_NAME = "improved_en_v1"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--model", default="gemma3:12b")
+parser.add_argument("--template", default="improved_en_v1")
+args = parser.parse_args()
+
 DATA_FILE = "data/final_labeled.csv"
 
 _model_slug = MODEL.replace("/", "-")
@@ -32,7 +54,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
         logging.FileHandler(log_path),
-        logging.StreamHandler(),
+        TqdmLoggingHandler()
     ],
 )
 log = logging.getLogger(__name__)
@@ -95,7 +117,7 @@ mismatches = []
 
 log.info(f"Loaded {len(data_csv)} samples from {DATA_FILE}")
 
-for idx, row in tqdm(data_csv.iterrows(), total=len(data_csv)):
+for idx, row in tqdm.tqdm(data_csv.iterrows(), total=len(data_csv)):
     text = row['text']
     prompt = render_prompt(template_name=TEMPLATE_NAME, text=text)
 
