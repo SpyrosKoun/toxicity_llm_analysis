@@ -29,7 +29,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 # Set to "ollama" or "huggingface"
 BACKEND = "ollama"
 
-OLLAMA_MODEL = "qwen2.5:7b"
+OLLAMA_MODEL = "gemma3:27b"
 HF_MODEL = "Qwen/Qwen3-4B"
 
 MODEL = OLLAMA_MODEL if BACKEND == "ollama" else HF_MODEL
@@ -67,8 +67,7 @@ def _init_ollama():
     def infer(prompt: str) -> str:
         response = ollama_chat(
             model=OLLAMA_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            think=False
+            messages=[{"role": "user", "content": prompt}]
         )
         return response.message.content
     return infer
@@ -107,6 +106,15 @@ if BACKEND not in _backends:
 log.info(f"Initialising backend '{BACKEND}' with model '{MODEL}'")
 infer = _backends[BACKEND]()
 
+log.info(
+    "Configuration:\n"
+    f"  backend   : {BACKEND}\n"
+    f"  model     : {MODEL}\n"
+    f"  template  : {TEMPLATE_NAME}\n"
+    f"  input     : {DATA_FILE}\n"
+    f"  output    : {OUTPUT_FILE}\n"
+    f"  mismatches: {MISMATCH_FILE}"
+)
 
 # ── Main loop ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +137,7 @@ for idx, row in tqdm.tqdm(data_csv.iterrows(), total=len(data_csv)):
         parsed = json.loads(content)
         classification = parsed['classification']
         explanation = parsed['explanation']
-    except (json.JSONDecodeError, KeyError) as e:
+    except Exception as e:
         mismatches.append((idx, text, content, str(e)))
         log.warning(f"Row {idx} response: {content}")
         log.error(f"Row {idx}: invalid response — {e}")
